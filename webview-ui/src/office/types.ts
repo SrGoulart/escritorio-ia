@@ -25,6 +25,7 @@ export type TileType = (typeof TileType)[keyof typeof TileType];
 /** Re-export ColorValue for consumers that import color types from office/types */
 export type { ColorValue } from '../components/ui/types.js';
 import type { ColorValue } from '../components/ui/types.js';
+import type { AgentMetricsView } from './engine/formatMetrics.js';
 
 export const CharacterState = {
   IDLE: 'idle',
@@ -252,6 +253,8 @@ export interface Character {
   contextTokens: number;
   /** Window `contextTokens` is measured against. */
   maxContextTokens: number;
+  /** Whole-session totals (tokens, active time); null until the server reports them. */
+  metrics: AgentMetricsView | null;
 }
 
 export const PetState = { IDLE: 'idle', WALK: 'walk', FOLLOW: 'follow' } as const;

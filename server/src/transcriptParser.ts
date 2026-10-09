@@ -4,6 +4,7 @@ import type { HookProvider } from '../../core/src/provider.js';
 import type { AgentStateStore } from './agentStateStore.js';
 import { TEXT_IDLE_DELAY_MS, TOOL_DONE_DELAY_MS } from './constants.js';
 import { updateContextUsage } from './contextUsage.js';
+import { updateSessionMetrics } from './sessionMetrics.js';
 import { hasInlineTeammates, hasPromotedBackgroundAgent } from './teamUtils.js';
 import {
   cancelPermissionTimer,
@@ -134,6 +135,7 @@ export function processTranscriptLine(
 
     // -- Context window usage (drives every agent's context gauge) --
     updateContextUsage(agentId, agent, agents, record, hookProvider);
+    updateSessionMetrics(agentId, agent, agents, record);
 
     // Resilient content extraction: support both record.message.content and record.content
     // Claude Code may change the JSONL structure across versions

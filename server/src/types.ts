@@ -1,5 +1,7 @@
 import type * as vscode from 'vscode';
 
+import type { SessionMetrics } from './sessionMetrics.js';
+
 export interface AgentState {
   id: number;
   sessionId: string;
@@ -57,6 +59,11 @@ export interface AgentState {
   /** True once this transcript produced a main-chain turn, after which
    *  sidechain records belong to sub-agents and stop moving the gauge. */
   sawMainChainUsage?: boolean;
+
+  // -- Session totals (server/src/sessionMetrics.ts) --
+  /** Tokens spent and active time for the whole session; seeded from the
+   *  transcript's history when watching starts, then streamed. */
+  metrics?: SessionMetrics;
 
   // -- Agent Teams --
   teamName?: string;

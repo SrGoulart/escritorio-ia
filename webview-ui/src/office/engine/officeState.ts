@@ -38,7 +38,13 @@ import type {
   TileType as TileTypeVal,
 } from '../types.js';
 import { CharacterState, Direction, PetState, TILE_SIZE } from '../types.js';
+import {
+  needsAreaAssignment,
+  pickUnclaimedArea,
+  seatsOutsideForeignAreas,
+} from './areaAssignment.js';
 import { createCharacter, updateCharacter } from './characters.js';
+import type { AgentMetricsView } from './formatMetrics.js';
 import { advanceMatrixEffect, startMatrixEffect } from './matrixEffectState.js';
 import { createPet, updatePet } from './petEntity.js';
 import { anchorTile, closestFreeSeat } from './seatPlacement.js';
@@ -101,8 +107,35 @@ export class OfficeState {
    *  overlay's per-frame updates stop re-centering. Reset on spawn/despawn. */
   private greeterCameraCancelled = false;
 
+  /**
+   * Fired when seating gave a folder an Area on its own (see `claimAreaFor`),
+   * so the host can persist the new mappings. Never fired for user edits.
+   */
+  onAreaMappingsAutoAssigned: ((mappings: Record<string, string[]>) => void) | null = null;
+
   setAreaMappings(mappings: Record<string, string[]>): void {
     this.areaMappings = mappings;
+  }
+
+  /**
+   * Give a folder with no mapping the first unowned Area that has seats, so each
+   * project gets its own room. No-op when the folder already has an entry (an
+   * empty one included) or no Area is free.
+   */
+  private claimAreaFor(folderName: string): boolean {
+    if (!needsAreaAssignment(this.areaMappings, folderName)) return false;
+    const labels = (this.layout.areas ?? []).map((a) => a.label);
+    if (labels.length === 0) return false;
+    const labelsWithSeats = new Set<string>();
+    for (const uid of this.seats.keys()) {
+      const zone = this.seatZone(uid);
+      if (zone !== null) labelsWithSeats.add(zone);
+    }
+    const label = pickUnclaimedArea(labels, labelsWithSeats, this.areaMappings);
+    if (label === null) return false;
+    this.areaMappings = { ...this.areaMappings, [folderName]: [label] };
+    this.onAreaMappingsAutoAssigned?.(this.areaMappings);
+    return true;
   }
 
   constructor(layout?: OfficeLayout) {
@@ -383,8 +416,14 @@ export class OfficeState {
     const pick2 = this.pickFromSeats(unzoned, electronicsTiles);
     if (pick2) return pick2;
 
-    // Stage 3 — any free seat.
-    return this.pickFromSeats(freeSeats, electronicsTiles);
+    // Stage 3 — any free seat, except in a room that belongs to another project.
+    const sharedOk = seatsOutsideForeignAreas(
+      freeSeats,
+      (uid) => this.seatZone(uid),
+      this.areaMappings,
+      folderName,
+    );
+    return this.pickFromSeats(sharedOk, electronicsTiles);
   }
 
   /** Closest walkable tile to (col,row) not occupied by another character, or null. */
@@ -451,7 +490,10 @@ export class OfficeState {
     const anchor = nearAgentId !== undefined ? this.characters.get(nearAgentId) : undefined;
     const anchorAt = anchorTile(anchor, this.seats);
     let seatId: string | null = null;
-    if (preferredSeatId && this.seats.has(preferredSeatId)) {
+    // A folder seen for the first time claims its room now, so a restored agent
+    // moves into it once; afterwards the mapping is persisted and saved seats stand.
+    const claimedRoom = folderName ? this.claimAreaFor(folderName) : false;
+    if (!claimedRoom && preferredSeatId && this.seats.has(preferredSeatId)) {
       const seat = this.seats.get(preferredSeatId)!;
       if (!seat.assigned) {
         seatId = preferredSeatId;
@@ -1084,6 +1126,12 @@ export class OfficeState {
     if (!ch) return;
     ch.contextTokens = contextTokens;
     ch.maxContextTokens = maxContextTokens;
+  }
+
+  setAgentMetrics(id: number, metrics: AgentMetricsView): void {
+    const ch = this.characters.get(id);
+    if (!ch) return;
+    ch.metrics = metrics;
   }
 
   update(dt: number): void {

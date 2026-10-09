@@ -1,4 +1,5 @@
 import type { AgentStateStore } from './agentStateStore.js';
+import { metricsSnapshot } from './sessionMetrics.js';
 import { hasPromotedBackgroundAgent } from './teamUtils.js';
 
 /**
@@ -83,6 +84,11 @@ export function resendAgentActivity(
         contextTokens: agent.contextTokens,
         maxContextTokens: agent.maxContextTokens,
       });
+    }
+
+    // 6. Session totals
+    if (agent.metrics) {
+      send({ type: 'agentMetrics', id, ...metricsSnapshot(agent.metrics) });
     }
   }
 }

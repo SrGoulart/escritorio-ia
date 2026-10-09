@@ -735,11 +735,27 @@ export function useExtensionMessages(
       } else if (msg.type === 'agentContextUsage') {
         const id = msg.id as number;
         os.setAgentContext(id, msg.contextTokens as number, msg.maxContextTokens as number);
+      } else if (msg.type === 'agentMetrics') {
+        os.setAgentMetrics(msg.id as number, {
+          inputTokens: msg.inputTokens as number,
+          cacheReadTokens: msg.cacheReadTokens as number,
+          outputTokens: msg.outputTokens as number,
+          activeMs: msg.activeMs as number,
+        });
       }
     };
     const unsubscribe = transport.onMessage(handler);
+    // A folder that seating just gave a room to: mirror it into React state and persist.
+    const officeState = getOfficeState();
+    officeState.onAreaMappingsAutoAssigned = (mappings) => {
+      setAreaMappings(mappings);
+      transport.send({ type: 'saveAreaMappings', mappings });
+    };
     transport.send({ type: 'webviewReady' });
-    return unsubscribe;
+    return () => {
+      officeState.onAreaMappingsAutoAssigned = null;
+      unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [getOfficeState]);
 

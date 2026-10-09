@@ -100,6 +100,8 @@ components:
         - $ref: '#/components/schemas/AgentTeamInfo'
         # Context window
         - $ref: '#/components/schemas/AgentContextUsage'
+        # Session totals
+        - $ref: '#/components/schemas/AgentMetrics'
         # Layout
         - $ref: '#/components/schemas/LayoutLoaded'
         # Assets
@@ -440,6 +442,31 @@ components:
         contextTokens:
           type: integer
         maxContextTokens:
+          type: integer
+
+    AgentMetrics:
+      description: |
+        Running totals for the agent's whole session: tokens spent and time
+        spent working. Unlike `AgentContextUsage` these only grow. `inputTokens`
+        is fresh input plus cache creation; cache reads are reported apart
+        because they dwarf everything else. `activeMs` is an approximation: the
+        gaps between transcript records, minus pauses longer than three minutes.
+        Sent for every agent that has a transcript; sub-agents never report it.
+      type: object
+      additionalProperties: false
+      required: [type, id, inputTokens, cacheReadTokens, outputTokens, activeMs]
+      properties:
+        type:
+          const: agentMetrics
+        id:
+          type: integer
+        inputTokens:
+          type: integer
+        cacheReadTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        activeMs:
           type: integer
 
     LayoutLoaded:

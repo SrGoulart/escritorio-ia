@@ -44,8 +44,10 @@ import {
 } from './constants.js';
 import { seedContextUsage } from './contextUsage.js';
 import type { DismissalTracker } from './dismissalTracker.js';
+import { folderNameFromCwd, readTranscriptCwd } from './folderName.js';
 import { assignPaletteIfNeeded } from './paletteAssigner.js';
 import { pathsMatch } from './pathKey.js';
+import { seedSessionMetrics } from './sessionMetrics.js';
 import type { SubagentWatch } from './subagentWatch.js';
 import { cancelPermissionTimer, cancelWaitingTimer, clearAgentActivity } from './timerManager.js';
 import { getHookProvider, processTranscriptLine } from './transcriptParser.js';
@@ -113,6 +115,7 @@ export function startFileWatching(
   // give an agent adopted or restored mid-session a context gauge without
   // replaying its whole transcript.
   seedContextUsage(agentId, agents, getHookProvider());
+  seedSessionMetrics(agentId, agents);
 
   // Single polling approach: reliable on all platforms (macOS, Linux, WSL2, Windows).
   // Previously used triple-redundant fs.watch + fs.watchFile + setInterval, but
@@ -1086,6 +1089,7 @@ export function adoptExternalSessionFromHook(
     const projectDir = path.dirname(transcriptPath);
     const folderName =
       folderNameResolver?.({ cwd, projectDir }) ??
+      folderNameFromCwd(cwd) ??
       folderNameFromProjectDir(path.basename(projectDir));
 
     adoptExternalSession(
@@ -1535,6 +1539,7 @@ function scanGlobalProjectDirs(
 
       const folderName =
         folderNameResolver?.({ projectDir: dirPath }) ??
+        folderNameFromCwd(readTranscriptCwd(file)) ??
         folderNameFromProjectDir(path.basename(dirPath));
       knownJsonlFiles.add(file);
       console.log(

@@ -18,6 +18,7 @@ import {
   TOOL_OVERLAY_VERTICAL_OFFSET,
 } from '../../constants.js';
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js';
+import { metricsLabel, metricsTooltip } from '../engine/formatMetrics.js';
 import type { OfficeState } from '../engine/officeState.js';
 import { overlayProjection } from '../projection.js';
 import type { ToolActivity } from '../types.js';
@@ -203,7 +204,7 @@ export function ToolOverlay({
 
         // Team info
         const teamRoleLabel = ch.isTeamLead ? 'LEAD' : ch.agentName || null;
-        const hasExtraLines = !!(ch.folderName || teamRoleLabel);
+        const hasExtraLines = !!(ch.folderName || teamRoleLabel || (!isSub && ch.metrics));
 
         // Context gauge. Every agent gets one — lead, teammate, adopted,
         // headless — as soon as it has taken a turn. Sub-agents never do: they
@@ -257,6 +258,15 @@ export function ToolOverlay({
                 {ch.folderName && (
                   <span className="text-2xs leading-none overflow-hidden text-ellipsis block">
                     {ch.folderName}
+                  </span>
+                )}
+                {!isSub && ch.metrics && (
+                  <span
+                    className="text-2xs leading-none overflow-hidden text-ellipsis block opacity-75"
+                    title={metricsTooltip(ch.metrics)}
+                    data-testid="agent-metrics"
+                  >
+                    {metricsLabel(ch.metrics)}
                   </span>
                 )}
               </div>
